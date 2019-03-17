@@ -53,6 +53,6 @@ bimglib = static_library('bimg', 'bimg/src/image.cpp', 'bimg/src/bimg_p.h', 'bim
 						 'bimg/include/bimg/encode.h', 'bimg/src/image_gnf.cpp', astc_codec_files, include_directories: [bxlib_include, bimglib_include], link_with: [bxlib])
 
 bgfx_include = include_directories('bgfx/include', 'bgfx/3rdparty', 'bgfx/3rdparty/dxsdk/include', 'bgfx/3rdparty/khronos')
-bgfxlib = static_library('bgfx', 'bgfx/src/amalgamated.cpp', 'bgfx/src/renderer_nvn.cpp', include_directories: [bxlib_include, bgfx_include, bimglib_include], link_with: [bxlib, bimglib])
+bgfxlib = static_library('bgfx', 'bgfx/src/amalgamated.cpp', include_directories: [bxlib_include, bgfx_include, bimglib_include], link_with: [bxlib, bimglib])
 
 executable('sdl_test', 'main.cpp', dependencies : [sdl_deps], include_directories : [sdl_includes, bgfx_include, bxlib_include], link_with: [bgfxlib, bimglib, bxlib])
