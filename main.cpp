@@ -91,16 +91,16 @@ int main(int argc, char* args[]) {
 	bgfx::setViewClear(0, BGFX_CLEAR_COLOR | BGFX_CLEAR_DEPTH, 0x303030FF, 1.0f, 0);
 
 	static float triangle_vertex[] = {
-		0.0f, 0.5f, 0.0f, /* */ 0.0f, 0.0f, 1.0f, 1.0f,
-		-0.5f, -0.5f, 0.0f, /* */ 0.0f, 1.0f, 0.0f, 1.0f,
-		0.5f, -0.5f, 0.0f, /* */  1.0f, 0.0f, 0.0f, 1.0f,
+		/* Position */ 0.0f, 0.5f, 0.0f, /* Colour */ 0.0f, 0.0f, 1.0f, 1.0f,
+		/* Position */ 0-0.5f, -0.5f, 0.0f, /* Colour */ 0.0f, 1.0f, 0.0f, 1.0f,
+		/* Position */ 00.5f, -0.5f, 0.0f, /* Colour */  1.0f, 0.0f, 0.0f, 1.0f,
 	};
 
 	bgfx::VertexDecl vertexDecl;
 	vertexDecl
 		.begin()
 		.add(bgfx::Attrib::Position, 3, bgfx::AttribType::Float)
-		.add(bgfx::Attrib::Color0, 4, bgfx::AttribType::Float, true)
+		.add(bgfx::Attrib::Color0, 4, bgfx::AttribType::Float)
 		.end();
 
 
