@@ -1,6 +1,6 @@
 $input v_color0
 
-#include "../bgfx/bgfx/examples/common/common.sh"
+#include "bgfx/examples/common/common.sh"
 
 void main()
 {
