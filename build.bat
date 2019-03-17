@@ -25,7 +25,7 @@ color
 @if not exist %builddir%\build.ninja (
 	meson %builddir% %buildflags%
 )
-ninja -C %builddir%
+ninja -C %builddir% -v
 
 @ENDLOCAL
 
