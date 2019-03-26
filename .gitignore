@@ -1,1 +1,6 @@
+.vscode/
 builddir/
+basic-frag.bin
+basic-frag.bin.disasm
+basic-vert.bin
+basic-vert.bin.disasm

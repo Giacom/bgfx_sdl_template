@@ -33,9 +33,13 @@ ninja -C %builddir% -v
 
 @SetLocal EnableDelayedExpansion
 
+@set target=%~1%
+@echo Target is %target%
+
 @if %result% EQU 0 (
 
-	call compile_shaders.bat
+	if !target!==dx11 call compile_dx11_shaders.bat
+	if !target!==opengl call compile_opengl_shaders.bat
 
 	if !errorlevel! NEQ 0 (
 		echo BUILD.BAT: Could not compile shaders
@@ -44,11 +48,8 @@ ninja -C %builddir% -v
 		echo BUILD.BAT: Shaders compiled successfully
 	)
 
-	@REM %builddir%\tools\welder.exe resources %builddir%\baller.exe
-
-
-	@if "%~1"=="run" (
-		%builddir%\sdl_test.exe
+	@if "%~2"=="run" (
+		%builddir%\sdl_test.exe --!target!
 		echo BUILD.BAT: Program finished with exit code %errorlevel%
 	) else (
 		echo BUILD.BAT: Build finished

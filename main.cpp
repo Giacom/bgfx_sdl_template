@@ -8,8 +8,40 @@
 #include <bgfx/bgfx.h>
 #include <bgfx/platform.h>
 
-#define SCREEN_WIDTH 640
-#define SCREEN_HEIGHT 480
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
+
+#define SCREEN_WIDTH 800
+#define SCREEN_HEIGHT 600
+
+
+struct DebugCallback : public bgfx::CallbackI {
+	DebugCallback() {}
+
+	void fatal(const char* _filePath, uint16_t _line, bgfx::Fatal::Enum _code, const char* _str) {
+		static const char* codes[] = {
+			"DebugCheck",
+			"InvalidShader",
+			"UnableToInitialize",
+			"UnableToCreateTexture",
+			"DeviceLost",
+			"Count",
+		};
+		fprintf(stderr, "[%s:%d] %s %s\n", _filePath, _line, codes[(int)_code], _str);
+	}
+
+	void traceVargs(const char* _filePath, uint16_t _line, const char* _format, va_list _argList) {}
+	void profilerBegin(const char* _name, uint32_t _abgr, const char* _filePath, uint16_t _line) {}
+	void profilerBeginLiteral(const char* _name, uint32_t _abgr, const char* _filePath, uint16_t _line) {}
+	void profilerEnd() {}
+	uint32_t cacheReadSize(uint64_t _id) { return 0; }
+	bool cacheRead(uint64_t _id, void* _data, uint32_t _size) { return false; }
+	void cacheWrite(uint64_t _id, const void* _data, uint32_t _size) {}
+	void screenShot(const char* _filePath, uint32_t _width, uint32_t _height, uint32_t _pitch, const void* _data, uint32_t _size, bool _yflip) {}
+	void captureBegin(uint32_t _width, uint32_t _height, uint32_t _pitch, bgfx::TextureFormat::Enum _format, bool _yflip) {}
+	void captureEnd() {}
+	void captureFrame(const void* _data, uint32_t _size) {}
+};
 
 const bgfx::ShaderHandle loadShader(const char* filename) {
 	auto* file = fopen(filename, "rb");
@@ -42,11 +74,40 @@ const bgfx::ShaderHandle loadShader(const char* filename) {
 	return handle;
 }
 
-int main(int argc, char* args[]) {
+
+int main(int argc, char** argv) {
 
 	if (SDL_Init(SDL_INIT_EVERYTHING)) {
 		fprintf(stderr, "could not initialize sdl2: %s\n", SDL_GetError());
 		return 1;
+	}
+
+	bgfx::RendererType::Enum renderer =
+#if _WIN32
+		bgfx::RendererType::Enum::Direct3D11;
+#else
+		bgfx::RendererType::Enum::OpenGL;
+#endif
+
+	for (int i = 0; i < argc; i++) {
+		const char* argument = argv[i];
+		if (strcmp("--dx11", argument) == 0) {
+			renderer = bgfx::RendererType::Enum::Direct3D11;
+		}
+		else if (strcmp("--dx9", argument) == 0) {
+			// Doesn't currently work
+			renderer = bgfx::RendererType::Enum::Direct3D9;
+		}
+		else if (strcmp("--opengl", argument) == 0) {
+			renderer = bgfx::RendererType::Enum::OpenGL;
+		}
+		else if (strcmp("--opengles", argument) == 0) {
+			renderer = bgfx::RendererType::Enum::OpenGLES;
+		}
+		else if (strcmp("--vulkan", argument) == 0) {
+			// Doesn't currently work
+			renderer = bgfx::RendererType::Enum::Vulkan;
+		}
 	}
 
 	SDL_Window* window = SDL_CreateWindow(
@@ -68,9 +129,12 @@ int main(int argc, char* args[]) {
 		return 1;
 	}
 
+	DebugCallback debugCallback;
+
 	bgfx::Init init;
-	init.type = bgfx::RendererType::Enum::Count;//bgfx::RendererType::Enum::Direct3D11;
-	init.debug = false;
+	init.type = renderer;
+	init.debug = true;
+	init.callback = &debugCallback;
 	init.resolution.width  = SCREEN_WIDTH;
 	init.resolution.height = SCREEN_HEIGHT;
 	init.resolution.reset = BGFX_RESET_VSYNC | BGFX_RESET_MSAA_X8;
@@ -83,17 +147,55 @@ int main(int argc, char* args[]) {
 		return 1;
 	}
 
+	if (bgfx::getRendererType() != renderer) {
+		fprintf(stderr, "BGFX could not create a %s renderer\n", bgfx::getRendererName(renderer));
+		return 1;
+	}
+
+
 	fprintf(stderr, "BGFX initialised with %s\n", bgfx::getRendererName(bgfx::getRendererType()));
 
 
+	// Load texture
+	int x, y, components;
+	unsigned char* textureRaw = stbi_load("duck.tga", &x, &y, &components, 4);
+	if (!textureRaw) {
+		fprintf(stderr, "stbi_load could not load duck.tga");
+		return 1;
+	}
 
+
+	auto texHandle = bgfx::createTexture2D(x, y, false, 1, bgfx::TextureFormat::RGBA8, BGFX_SAMPLER_UVW_CLAMP,
+		bgfx::makeRef(textureRaw, x * y * components, [](void* ptr, void* userData) {
+			stbi_image_free(ptr);
+		}
+	));
+
+
+	// Setup vertices
 
 	bgfx::setViewClear(0, BGFX_CLEAR_COLOR | BGFX_CLEAR_DEPTH, 0x303030FF, 1.0f, 0);
 
-	static float triangle_vertex[] = {
-		/* Position */ 0.0f, 0.5f, 0.0f, /* Colour */ 0.0f, 0.0f, 1.0f, 1.0f,
-		/* Position */ 0-0.5f, -0.5f, 0.0f, /* Colour */ 0.0f, 1.0f, 0.0f, 1.0f,
-		/* Position */ 00.5f, -0.5f, 0.0f, /* Colour */  1.0f, 0.0f, 0.0f, 1.0f,
+	float w_ratio = (float)x / (float)SCREEN_WIDTH;
+	float h_ratio = (float)y / (float)SCREEN_HEIGHT;
+
+	const float zoom = 0.5f;
+	w_ratio *= zoom;
+	h_ratio *= zoom;
+
+
+	fprintf(stderr, "W Ratio: %f / R Ratio: %f\n", w_ratio, h_ratio);
+
+	float square_vertex[] = {
+		// Bottom right triangle
+		/* Position */ -w_ratio, -h_ratio, 0.0f, /* Colour */ 1.0f, 1.0f, 1.0f, 1.0f, /* UV */  0.0f, 1.0f,
+		/* Position */  w_ratio, -h_ratio, 0.0f, /* Colour */ 1.0f, 1.0f, 1.0f, 1.0f, /* UV */  1.0f, 1.0f,
+		/* Position */  w_ratio,  h_ratio, 0.0f, /* Colour */ 1.0f, 1.0f, 1.0f, 1.0f, /* UV */  1.0f, 0.0f,
+
+		// Top left triangle
+		/* Position */  w_ratio,  h_ratio, 0.0f, /* Colour */ 1.0f, 1.0f, 1.0f, 1.0f, /* UV */  1.0f, 0.0f,
+		/* Position */ -w_ratio,  h_ratio, 0.0f, /* Colour */ 1.0f, 1.0f, 1.0f, 1.0f, /* UV */  0.0f, 0.0f,
+		/* Position */ -w_ratio, -h_ratio, 0.0f, /* Colour */ 1.0f, 1.0f, 1.0f, 1.0f, /* UV */  0.0f, 1.0f,
 	};
 
 	bgfx::VertexDecl vertexDecl;
@@ -101,10 +203,11 @@ int main(int argc, char* args[]) {
 		.begin()
 		.add(bgfx::Attrib::Position, 3, bgfx::AttribType::Float)
 		.add(bgfx::Attrib::Color0, 4, bgfx::AttribType::Float)
+		.add(bgfx::Attrib::TexCoord0, 2, bgfx::AttribType::Float)
 		.end();
 
 
-	auto vb = bgfx::createVertexBuffer(bgfx::makeRef(triangle_vertex, sizeof(triangle_vertex)), vertexDecl);
+	auto vb = bgfx::createVertexBuffer(bgfx::makeRef(square_vertex, sizeof(square_vertex)), vertexDecl);
 
 	auto fragShader = loadShader("basic-frag.bin");
 	auto vertShader = loadShader("basic-vert.bin");
@@ -120,15 +223,23 @@ int main(int argc, char* args[]) {
 		return 1;
 	}
 
+	auto texUniform = bgfx::createUniform("s_texColor", bgfx::UniformType::Sampler);
 
 	SDL_Event event;
 	bool running = true;
 	int i = 0;
+	bool debug = false;
+
 	while (running) {
 		while (SDL_PollEvent(&event)) {
 			if (event.type == SDL_QUIT) {
 				running = false;
 				break;
+			}
+
+			if (event.type == SDL_KEYDOWN && event.key.keysym.scancode == SDL_SCANCODE_V) {
+				debug = !debug;
+				bgfx::setDebug(debug ? BGFX_DEBUG_STATS : 0);
 			}
 
 		}
@@ -137,7 +248,8 @@ int main(int argc, char* args[]) {
 		bgfx::touch(0);
 
 		bgfx::setVertexBuffer(0, vb);
-		bgfx::setState(BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_Z | BGFX_STATE_DEPTH_TEST_LESS | BGFX_STATE_CULL_CW | BGFX_STATE_MSAA);
+		bgfx::setTexture(0, texUniform, texHandle);
+		bgfx::setState(BGFX_STATE_DEFAULT | BGFX_STATE_BLEND_ALPHA);
 		bgfx::submit(0, program);
 
 		bgfx::frame();
