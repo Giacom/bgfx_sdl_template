@@ -198,7 +198,7 @@ int main(int argc, char** argv) {
 		/* Position */ -w_ratio, -h_ratio, 0.0f, /* Colour */ 1.0f, 1.0f, 1.0f, 1.0f, /* UV */  0.0f, 1.0f,
 	};
 
-	bgfx::VertexDecl vertexDecl;
+	bgfx::VertexLayout vertexDecl;
 	vertexDecl
 		.begin()
 		.add(bgfx::Attrib::Position, 3, bgfx::AttribType::Float)
