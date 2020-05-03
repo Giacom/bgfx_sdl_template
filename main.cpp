@@ -105,7 +105,6 @@ int main(int argc, char** argv) {
 			renderer = bgfx::RendererType::Enum::OpenGLES;
 		}
 		else if (strcmp("--vulkan", argument) == 0) {
-			// Doesn't currently work
 			renderer = bgfx::RendererType::Enum::Vulkan;
 		}
 	}
